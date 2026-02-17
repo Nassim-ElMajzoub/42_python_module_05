@@ -58,7 +58,7 @@ class TransactionStream(DataStream):
 
     def filter_data(self, data_batch: List[Any],
                     criteria: Optional[str] = None) -> List[Any]:
-        if criteria == "large":
+        if criteria == "high":
             return [data for data in data_batch if data > 100 or data < -100]
         return data_batch
 
@@ -80,10 +80,28 @@ class EventStream(DataStream):
 class StreamProcessor:
     def process_stream(self, stream: DataStream, data: List[Any]) -> str:
         return stream.process_batch(data)
-    
+
     def stream_stats(self, stream: DataStream, data: List[Any]) -> str:
-        stats = stream.get_stats(data)
-        return
+        stats = stream.get_stats()
+        if stats.get("data_type") == "Sensor data":
+            return (
+                f"- {stats.get('data_type')}: {stats.get('total_processed')}"
+                " readings processed"
+            )
+        elif stats.get("data_type") == "Transaction data":
+            return (
+                f"- {stats.get('data_type')}: {stats.get('total_processed')}"
+                " operations processed"
+            )
+        else:
+            return (
+                f"- {stats.get('data_type')}: {stats.get('total_processed')}"
+                " events processed"
+            )
+
+    def filter_stream(self, stream: DataStream, data: List[Any],
+                      criteria: Optional[str] = None) -> List[Any]:
+        return stream.filter_data(data, criteria)
 
 
 if __name__ == "__main__":
@@ -127,6 +145,7 @@ if __name__ == "__main__":
     print("\n=== Polymorphic Stream Processing ===")
     print("Processing mixed stream types through unified interface...\n")
 
+    print("Batch 1 Results:")
     streams = [
         (SensorStream("SENSOR_002"), [100, 100]),
         (TransactionStream("TRANS_002"), [100, 500, -50, -96]),
@@ -134,4 +153,19 @@ if __name__ == "__main__":
     ]
 
     for stream, data in streams:
-        print(processor.process_stream(stream, data))
+        processor.process_stream(stream, data)
+        print(processor.stream_stats(stream, data))
+
+    print("\nStream filtering active: High-priority data only")
+    filtered_res = []
+    for stream, data in streams:
+        filtered_lst = processor.filter_stream(stream, data, criteria="high")
+        if isinstance(stream, SensorStream):
+            filtered_str = str(len(filtered_lst)) + " critical sensor alert(s)"
+            filtered_res.append(filtered_str)
+        elif isinstance(stream, TransactionStream):
+            filtered_str = str(len(filtered_lst)) + " large transaction(s)"
+            filtered_res.append(filtered_str)
+    print("Filtered results: " + ", ".join(filtered_res))
+
+    print("\nAll streams processed successfully. Nexus throughput optimal.")
