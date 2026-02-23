@@ -43,6 +43,11 @@ class SensorStream(DataStream):
         if criteria == "high":
             return [data for data in data_batch if data > 50]
         return data_batch
+    
+    def get_stats(self) -> Dict[str, Union[str, int, float]]:
+        stats = super().get_stats()
+        stats['summary'] = f"{self.total_processed} readings processed"
+        return stats
 
 
 class TransactionStream(DataStream):
@@ -62,6 +67,11 @@ class TransactionStream(DataStream):
             return [data for data in data_batch if data > 100 or data < -100]
         return data_batch
 
+    def get_stats(self) -> Dict[str, Union[str, int, float]]:
+        stats = super().get_stats()
+        stats['summary'] = f"{self.total_processed} operations processed"
+        return stats
+
 
 class EventStream(DataStream):
     def __init__(self, stream_id: str) -> None:
@@ -75,6 +85,11 @@ class EventStream(DataStream):
         error_word = "error" if num_errors == 1 else "errors"
         return (f"Event analysis: {len(data_batch)} events"
                 f", {num_errors} {error_word} detected")
+    
+    def get_stats(self) -> Dict[str, Union[str, int, float]]:
+        stats = super().get_stats()
+        stats['summary'] = f"{self.total_processed} events processed"
+        return stats
 
 
 class StreamProcessor:
@@ -83,21 +98,7 @@ class StreamProcessor:
 
     def stream_stats(self, stream: DataStream, data: List[Any]) -> str:
         stats = stream.get_stats()
-        if stats.get("data_type") == "Sensor data":
-            return (
-                f"- {stats.get('data_type')}: {stats.get('total_processed')}"
-                " readings processed"
-            )
-        elif stats.get("data_type") == "Transaction data":
-            return (
-                f"- {stats.get('data_type')}: {stats.get('total_processed')}"
-                " operations processed"
-            )
-        else:
-            return (
-                f"- {stats.get('data_type')}: {stats.get('total_processed')}"
-                " events processed"
-            )
+        return f"- {stats['data_type']}: {stats['summary']}"
 
     def filter_stream(self, stream: DataStream, data: List[Any],
                       criteria: Optional[str] = None) -> List[Any]:
@@ -161,10 +162,12 @@ if __name__ == "__main__":
     for stream, data in streams:
         filtered_lst = processor.filter_stream(stream, data, criteria="high")
         if isinstance(stream, SensorStream):
-            filtered_str = str(len(filtered_lst)) + " critical sensor alert(s)"
+            word = "alert" if len(filtered_lst) == 1 else "alerts"
+            filtered_str = str(len(filtered_lst)) + " critical sensor " + word
             filtered_res.append(filtered_str)
         elif isinstance(stream, TransactionStream):
-            filtered_str = str(len(filtered_lst)) + " large transaction(s)"
+            word = "transaction" if len(filtered_lst) == 1 else "transactions"
+            filtered_str = str(len(filtered_lst)) + " large " + word
             filtered_res.append(filtered_str)
     print("Filtered results: " + ", ".join(filtered_res))
 
